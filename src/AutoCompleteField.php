@@ -4,10 +4,10 @@ namespace TractorCow\AutoComplete;
 
 use SilverStripe\CMS\Controllers\ContentController;
 use SilverStripe\Control\Controller;
-use SilverStripe\Forms\TextField;
-use SilverStripe\View\Requirements;
-use SilverStripe\ORM\DataList;
 use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Forms\TextField;
+use SilverStripe\ORM\DataList;
+use SilverStripe\View\Requirements;
 
 /**
  * Autocompleting text field, using jQuery.
@@ -142,19 +142,20 @@ class AutoCompleteField extends TextField
     {
         $atts = array_merge(
             array(
-                'data-source' => $this->getSuggestURL(),
+                // 'data-source' => $this->getSuggestURL(),
+                'data-source' => $this->getSourceDataArray(), // cheewai@movingmouse, return json array instead of using string url; $this->getSuggestURL(),
                 'data-min-length' => $this->getMinSearchLength(),
                 'data-require-selection' => $this->getRequireSelection(),
                 'data-pop-separate' => $this->getPopulateSeparately(),
                 'data-clear-input' => $this->getClearInput(),
                 'autocomplete' => 'off',
-                'name' => $this->getName() . '__autocomplete',
+                // 'name' => $this->getName() . '__autocomplete', // cheewai@movingmouse.com: dun change to dummy field, we want to actually store text entered
                 'placeholder' => 'Search on ' . implode(' or ', $this->getSourceFields())
             ), parent::getAttributes()
         );
 
         // Override the value so we start with a clear search form (depending on configuration).
-        $atts['value'] = ($this->getPopulateSeparately() ? null : $this->Value());
+        // $atts['value'] = ($this->getPopulateSeparately() ? null : $this->Value()); // cheewai@movingmouse.com: NA for plain text
 
         return $atts;
     }
@@ -195,28 +196,30 @@ class AutoCompleteField extends TextField
 
     /**
      * Gets the readable value of the record, per $displayField.
+     * cheewai@movingmouse.com - changed to using the plain text data stored, instead of ID of source record
      *
      * @return string
      */
     public function Value()
     {
+        return $this->value;
         // try to fetch value from selected record
-        $record = DataList::create($this->sourceClass)
-            ->filter(array(
-                $this->storedField => $this->dataValue()
-            ))
-            ->first();
+        // $record = DataList::create($this->sourceClass)
+        //     ->filter(array(
+        //         $this->storedField => $this->dataValue()
+        //     ))
+        //     ->first();
 
-        if ($record) {
-            return $record->{$this->displayField};
-        }
+        // if ($record) {
+        //     return $record->{$this->displayField};
+        // }
 
-        // if selection is not required, display the user provided value
-        if (!$this->requireSelection && !empty($this->value)) {
-            return $this->value;
-        }
+        // // if selection is not required, display the user provided value
+        // if (!$this->requireSelection && !empty($this->value)) {
+        //     return $this->value;
+        // }
 
-        return '';
+        // return '';
     }
 
     /**
@@ -602,6 +605,50 @@ class AutoCompleteField extends TextField
         }
 
         $items = array_values($items);
+
+        // the response body
+        return json_encode($items);
+    }
+
+    /**
+     * cheewai@movingmouse.com
+     * returns all data source as json array
+     *
+     *
+     * @return string A JSON list of items for Autocomplete.
+     */
+    public function getSourceDataArray() {
+        // Find class to search within
+        $sourceClass = $this->determineSourceClass();
+
+        if (!$sourceClass) {
+            return '[]';
+        }
+        
+        // Find fields to search within
+        $sourceFields = $this->getSourceFields();
+        
+        // Generate query
+        $query = DataList::create($sourceClass)
+            ->sort($this->sourceSort);
+        
+        if ($this->sourceFilter) {
+            $query = $query->where($this->sourceFilter);
+        }
+
+        // generate items from result
+        $items = array();
+
+        foreach ($query as $record) {
+            foreach($sourceFields as $field) {
+                if($record->{$field}) // dun push null items
+                    $items[] = $record->{$field}; // prev version stores the ID of the source class, we are storing the text value instead
+            }
+        }
+        
+        // unique and sort
+        $items = array_unique($items);
+        sort($items);
 
         // the response body
         return json_encode($items);

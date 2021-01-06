@@ -20,8 +20,50 @@
                 var requireSelection = !!$input.data('requireSelection');
                 var source = $input.data('source');
                 var minLength = parseInt($input.data('minLength'));
-                
-            
+
+                var updateField = function (ui) {
+                    var value = $input.val();
+
+                    if (value) {
+
+                        // Accept if item selected from list
+                        if (ui.item) {
+                            setFieldValue(ui.item.stored, ui.item.label);
+
+                            if (clearInput) {
+                                // Reset input field, if specified.
+                                $input.val('');
+
+                            } else if (!popSeparate) {
+                                // Place label inside input field.
+                                $input.val(ui.item.label);
+                            }
+                        }
+
+                        // Check if a selection from the list is required
+                        else if (!requireSelection) {
+                            // free text is allowed, use it
+                            setFieldValue(value, value);
+
+                            if (clearInput) {
+                                // Reset input field, if specified.
+                                $input.val('');
+                            }
+
+                        } else {
+                            // Free text is not allowed so clear field values now.
+                            clearField();
+                        }
+
+                    } else {
+                        clearField();
+                    }
+
+
+                    // Persist search term
+                    return false;
+                };
+
                 var setFieldValue = function (value, label) {
                     $hiddenInput.val(value);
                     if (popSeparate) {
@@ -38,25 +80,29 @@
                         $valueHolder.removeClass('has-value');
                     }
                 };
-            
+
+                // Prevent this field from loading itself multiple times
                 if ($input.attr('data-loaded') == 'true')
                     return;
                 $input.attr('data-loaded', 'true');
-                
+
+                // Prevent this field from initializing with autocomplete while focused. Required to prevent an
+                // accidental misfire in the jQuery UI autocomplete "change" event that occurs if: 1.) Field starts out
+                // with focus and 2.) You click away to remove focus.
                 $input.blur();
 
                 // load autocomplete into this field
                 $input.autocomplete({
-                  source: source,
-                  minLength: minLength,
-                  // change: function (event, ui) {
-                  //   return updateField(ui);
-                  // },
-                  // select: function (event, ui) {
-                  //   return updateField(ui);
-                  // }
+                    source: source,
+                    minLength: minLength,
+                    change: function (event, ui) {
+                        return updateField(ui);
+                    },
+                    select: function (event, ui) {
+                        return updateField(ui);
+                    }
                 });
-            
+
                 // Allow clearing of selection
                 $input.parent().find('a.clear').click(function (e) {
                     e.preventDefault();
@@ -69,7 +115,6 @@
                         $input.autocomplete('search');
                     }
                 });
-
             }
 
         });
