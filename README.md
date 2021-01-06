@@ -3,6 +3,9 @@ silverstripe-autocomplete
 
 Autocomplete text field for Silverstripe
 
+Forked from https://github.com/tractorcow/silverstripe-autocomplete
+Changed to storing only the text values from input text instead of id references
+
 usage
 =====
 
